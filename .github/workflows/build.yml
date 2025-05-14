@@ -73,13 +73,27 @@ jobs:
             brew update --quiet
             echo "Installing openssl@3, libcbor, and libfido2..."
             brew install openssl@3 libcbor libfido2
+
+
+
+
+            export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
+            export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
+            export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
             echo "Cloning rats-tls..."
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
             echo "Configuring rats-tls with CMake..."
-            cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_PREFIX_PATH="/opt/homebrew/opt/openssl@3;/opt/homebrew/opt/libcbor;/opt/homebrew/opt/libfido2" -DTLS_TYPE=openssl -DWITH_SGX=OFF -DOPENSSL_USE_STATIC_LIBS=ON
+            cmake -B build \
+              -DCMAKE_INSTALL_PREFIX=/usr/local \
+              -DTLS_TYPE=openssl \
+              -DWITH_SGX=OFF \
+              -DOPENSSL_USE_STATIC_LIBS=ON
             echo "Building and installing rats-tls..."
             sudo cmake --build build --target install
+            cd ..
+
+
             echo "Copying librats_tls.dylib..."
             mkdir -p /project/pyrats_tls
             cp /usr/local/lib/librats_tls.dylib /project/pyrats_tls/
