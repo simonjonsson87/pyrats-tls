@@ -31,12 +31,6 @@ jobs:
           architecture: ${{ matrix.architecture }}
           cache: 'pip'
 
-
-
-
-
-
-
       - name: Install cibuildwheel
         run: pip install cibuildwheel==2.23.3
 
@@ -90,6 +84,8 @@ jobs:
               -DTLS_TYPE=openssl \
               -DWITH_SGX=OFF \
               -DOPENSSL_USE_STATIC_LIBS=ON
+              -DOPENSSL_ROOT_DIR=/opt/homebrew/opt/openssl@3 \
+              -DOPENSSL_INCLUDE_DIR=/opt/homebrew/opt/openssl@3/include
 
             echo "Building and installing rats-tls..."
             sudo cmake --build build --target install
