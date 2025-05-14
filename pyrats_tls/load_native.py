@@ -28,20 +28,20 @@ def _load_library():
     if not lib_name:
         raise RatsTlsError(f"Unsupported platform: {sys.platform}")
 
-    # Attempt to load from the same directory as this script
-    here = os.path.dirname(os.path.abspath(__file__))
-    lib_path = os.path.join(here, lib_name)
-    if os.path.exists(lib_path):
-        try:
+    # Try package directory first
+    package_dir = os.path.dirname(os.path.abspath(__file__))
+    lib_path = os.path.join(package_dir, lib_name)
+    try:
+        if os.path.exists(lib_path):
             return ctypes.CDLL(lib_path)
-        except OSError as e:
-            raise RatsTlsError(f"Failed to load RATS-TLS library from {lib_path}: {e}")
+    except OSError as e:
+        print(f"Failed to load {lib_path}: {e}")
 
-    # Attempt to load from system library paths
+    # Fallback to system paths
     try:
         return ctypes.CDLL(lib_name)
     except OSError as e:
-        raise RatsTlsError(f"Failed to load RATS-TLS library '{lib_name}': {e}")
+        raise RatsTlsError(f"Cannot load {lib_name}: {e}")
 
 # Load RATS-TLS library
 lib = _load_library()

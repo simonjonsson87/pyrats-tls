@@ -1,3 +1,5 @@
+# build.yml
+
 name: Build Wheels
 
 on:
@@ -30,35 +32,39 @@ jobs:
           cibuildwheel --output-dir wheelhouse
         env:
           CIBW_SKIP: "pp* cp36* cp37*"
-          CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-*"
+          CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+          CIBW_BUILD_VERBOSITY: 1
           CIBW_ENVIRONMENT_LINUX: >
-            CMAKE_ARGS="-CMAKE_BUILD_TYPE=Release"
+            LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
           CIBW_ENVIRONMENT_MACOS: >
-            CMAKE_ARGS="-CMAKE_BUILD_TYPE=Release"
+            DYLD_LIBRARY_PATH="/usr/local/lib:$DYLD_LIBRARY_PATH"
           CIBW_ENVIRONMENT_WINDOWS: >
-            CMAKE_ARGS="-CMAKE_BUILD_TYPE=Release -CMAKE_PREFIX_PATH=C:/rats-tls"
+            PATH="C:/rats-tls/bin;$PATH"
           CIBW_BEFORE_BUILD_LINUX: |
             apt-get update && apt-get install -y git make autoconf libtool gcc g++ libssl-dev libcbor-dev
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
-            cmake -B build -CMAKE_INSTALL_PREFIX=/usr/local -DTLS_TYPE=openssl -DWITH_SGX=OFF -DWITH_SEV=ON
+            cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DTLS_TYPE=openssl -DWITH_SGX=OFF -DWITH_SEV=ON
             cmake --build build --target install
+            cp /usr/local/lib/librats_tls.so /project/pyrats_tls/
             cd ..
             pip install cmake ninja
           CIBW_BEFORE_BUILD_MACOS: |
             brew install openssl@3 cbor
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
-            cmake -B build -CMAKE_INSTALL_PREFIX=/usr/local -DTLS_TYPE=openssl -DWITH_SGX=OFF
+            cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DTLS_TYPE=openssl -DWITH_SGX=OFF
             cmake --build build --target install
+            cp /usr/local/lib/librats_tls.dylib /project/pyrats_tls/
             cd ..
             pip install cmake ninja
           CIBW_BEFORE_BUILD_WINDOWS: |
             choco install git make openssl
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
-            cmake -G "Visual Studio 16 2019" -A x64 -B build -CMAKE_INSTALL_PREFIX=C:/rats-tls -DTLS_TYPE=openssl -DWITH_SGX=OFF
+            cmake -G "Visual Studio 16 2019" -A x64 -B build -DCMAKE_INSTALL_PREFIX=C:/rats-tls -DTLS_TYPE=openssl -DWITH_SGX=OFF
             cmake --build build --config Release --target install
+            cp C:/rats-tls/bin/rats_tls.dll /project/pyrats_tls/
             cd ..
             pip install cmake ninja
 
@@ -73,3 +79,6 @@ jobs:
           pip install pytest
           pip install pyrats_tls --no-index --find-links=wheelhouse
           pytest tests
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib:$LD_LIBRARY_PATH  # Linux
+          DYLD_LIBRARY_PATH: /usr/local/lib:$DYLD_LIBRARY_PATH  # macOS          
