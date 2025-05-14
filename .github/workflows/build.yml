@@ -71,34 +71,37 @@ jobs:
           CIBW_BEFORE_BUILD_MACOS: |
             echo "Updating Homebrew..."
             brew update --quiet
+
             echo "Installing openssl@3, libcbor, and libfido2..."
             brew install openssl@3 libcbor libfido2
 
-
-
-
+            # Make OpenSSL visible to CMake
             export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
             export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
             export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
+
             echo "Cloning rats-tls..."
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
+
             echo "Configuring rats-tls with CMake..."
             cmake -B build \
               -DCMAKE_INSTALL_PREFIX=/usr/local \
               -DTLS_TYPE=openssl \
               -DWITH_SGX=OFF \
               -DOPENSSL_USE_STATIC_LIBS=ON
+
             echo "Building and installing rats-tls..."
             sudo cmake --build build --target install
+
+            # Back to the root of your Python project
             cd ..
 
+            echo "Copying librats_tls.dylib into the Python package..."
+            mkdir -p pyrats_tls/
+            cp /usr/local/lib/librats_tls.dylib pyrats_tls/
 
-            echo "Copying librats_tls.dylib..."
-            mkdir -p /project/pyrats_tls
-            cp /usr/local/lib/librats_tls.dylib /project/pyrats_tls/
-            cd ..
-            echo "Installing cmake and ninja..."
+            echo "Installing CMake and Ninja for any Python-side build steps..."
             pip install cmake ninja
           CIBW_BEFORE_BUILD_WINDOWS: |
             choco install git make openssl
