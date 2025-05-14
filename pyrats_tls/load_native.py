@@ -7,23 +7,18 @@ import platform
 import socket
 import threading
 import logging
+from .exceptions import RatsTlsError
 
 # Set up logging
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
-class RatsTlsError(Exception):
-    """Custom exception for RATS-TLS related errors."""
-    pass
-
 def _load_library():
-    """Load the RATS-TLS library based on the platform."""
     lib_names = {
         "linux": "librats_tls.so",
         "darwin": "librats_tls.dylib",
         "win32": "rats_tls.dll"
     }
-
     lib_name = lib_names.get(sys.platform)
     if not lib_name:
         raise RatsTlsError(f"Unsupported platform: {sys.platform}")

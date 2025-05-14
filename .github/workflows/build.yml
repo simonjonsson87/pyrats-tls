@@ -37,7 +37,9 @@ jobs:
           CIBW_ENVIRONMENT_LINUX: >
             LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
           CIBW_ENVIRONMENT_MACOS: >
-            DYLD_LIBRARY_PATH="/usr/local/lib:$DYLD_LIBRARY_PATH"
+            DYLD_LIBRARY_PATH="/usr/local/lib:/opt/homebrew/opt/openssl@3/lib:$DYLD_LIBRARY_PATH"
+            OPENSSL_DIR="/opt/homebrew/opt/openssl@3"
+            LIBCBOR_DIR="/opt/homebrew/opt/libcbor"
           CIBW_ENVIRONMENT_WINDOWS: >
             PATH="C:/rats-tls/bin;$PATH"
           CIBW_BEFORE_BUILD_LINUX: |
@@ -46,15 +48,17 @@ jobs:
             cd rats-tls
             cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DTLS_TYPE=openssl -DWITH_SGX=OFF -DWITH_SEV=ON
             cmake --build build --target install
+            mkdir -p /project/pyrats_tls
             cp /usr/local/lib/librats_tls.so /project/pyrats_tls/
             cd ..
             pip install cmake ninja
           CIBW_BEFORE_BUILD_MACOS: |
-            brew install openssl@3 cbor
+            brew install openssl@3 libcbor
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
-            cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DTLS_TYPE=openssl -DWITH_SGX=OFF
+            cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_PREFIX_PATH="/opt/homebrew/opt/openssl@3;/opt/homebrew/opt/libcbor" -DTLS_TYPE=openssl -DWITH_SGX=OFF
             cmake --build build --target install
+            mkdir -p /project/pyrats_tls
             cp /usr/local/lib/librats_tls.dylib /project/pyrats_tls/
             cd ..
             pip install cmake ninja
@@ -64,6 +68,7 @@ jobs:
             cd rats-tls
             cmake -G "Visual Studio 16 2019" -A x64 -B build -DCMAKE_INSTALL_PREFIX=C:/rats-tls -DTLS_TYPE=openssl -DWITH_SGX=OFF
             cmake --build build --config Release --target install
+            mkdir -p /project/pyrats_tls
             cp C:/rats-tls/bin/rats_tls.dll /project/pyrats_tls/
             cd ..
             pip install cmake ninja
@@ -81,4 +86,4 @@ jobs:
           pytest tests
         env:
           LD_LIBRARY_PATH: /usr/local/lib:$LD_LIBRARY_PATH  # Linux
-          DYLD_LIBRARY_PATH: /usr/local/lib:$DYLD_LIBRARY_PATH  # macOS          
+          DYLD_LIBRARY_PATH: /usr/local/lib:/opt/homebrew/opt/openssl@3/lib:$DYLD_LIBRARY_PATH  # macOS
