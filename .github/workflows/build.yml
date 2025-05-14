@@ -47,9 +47,9 @@ jobs:
           CIBW_BUILD: "cp312-*"
           CIBW_BUILD_VERBOSITY: 1
           CIBW_CONFIG_SETTINGS: |
-            bdist_wheel.plat-name=macosx_11_0_arm64  # macOS
-            bdist_wheel.plat-name=manylinux_2_17_x86_64  # Linux
-            bdist_wheel.plat-name=win_amd64  # Windows
+            bdist_wheel.plat-name=macosx_11_0_arm64
+            bdist_wheel.plat-name=manylinux_2_17_x86_64
+            bdist_wheel.plat-name=win_amd64
           CIBW_ENVIRONMENT_LINUX: >
             LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
           CIBW_ENVIRONMENT_MACOS: >
@@ -109,5 +109,5 @@ jobs:
           pip install pyrats_tls --no-index --find-links=wheelhouse
           pytest tests
         env:
-          LD_LIBRARY_PATH: /usr/local/lib:$LD_LIBRARY_PATH  # Linux
-          DYLD_LIBRARY_PATH: /usr/local/lib:/opt/homebrew/opt/openssl@3/lib:/opt/homebrew/opt/libcbor/lib:/opt/homebrew/opt/libfido2/lib:$DYLD_LIBRARY_PATH  # macOS
+          LD_LIBRARY_PATH: /usr/local/lib:$LD_LIBRARY_PATH
+          DYLD_LIBRARY_PATH: /usr/local/lib:/opt/homebrew/opt/openssl@3/lib:/opt/homebrew/opt/libcbor/lib:/opt/homebrew/opt/libfido2/lib:$DYLD_LIBRARY_PATH
