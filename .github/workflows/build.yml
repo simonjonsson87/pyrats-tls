@@ -23,6 +23,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          architecture: arm64  # macOS arm64, ignored on Linux/Windows
+          cache: 'pip'
 
       - name: Install cibuildwheel
         run: pip install cibuildwheel==2.23.3
@@ -31,22 +33,25 @@ jobs:
         run: |
           cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_SKIP: "pp* cp36* cp37*"
-          CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+          CIBW_BUILD: "cp312-*"
           CIBW_BUILD_VERBOSITY: 1
+          CIBW_CONFIG_SETTINGS: |
+            bdist_wheel.plat-name=macosx_11_0_arm64  # macOS
+            bdist_wheel.plat-name=manylinux_2_17_x86_64  # Linux
+            bdist_wheel.plat-name=win_amd64  # Windows
           CIBW_ENVIRONMENT_LINUX: >
             LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
           CIBW_ENVIRONMENT_MACOS: >
-            DYLD_LIBRARY_PATH="/usr/local/lib:/opt/homebrew/opt/openssl@3/lib:$DYLD_LIBRARY_PATH"
+            DYLD_LIBRARY_PATH="/usr/local/lib:/opt/homebrew/opt/openssl@3/lib:/opt/homebrew/opt/libcbor/lib:/opt/homebrew/opt/libfido2/lib:$DYLD_LIBRARY_PATH"
             OPENSSL_DIR="/opt/homebrew/opt/openssl@3"
             LIBCBOR_DIR="/opt/homebrew/opt/libcbor"
           CIBW_ENVIRONMENT_WINDOWS: >
             PATH="C:/rats-tls/bin;$PATH"
           CIBW_BEFORE_BUILD_LINUX: |
-            apt-get update && apt-get install -y git make autoconf libtool gcc g++ libssl-dev libcbor-dev
+            apt-get update && apt-get install -y git make autoconf libtool gcc g++ libssl-dev libcbor-dev libfido2-dev
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
-            cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DTLS_TYPE=openssl -DWITH_SGX=OFF -DWITH_SEV=ON
+            cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DTLS_TYPE=openssl -DWITH_SGX=OFF -DWITH_SEV=ON -DOPENSSL_USE_STATIC_LIBS=ON
             sudo cmake --build build --target install
             mkdir -p /project/pyrats_tls
             cp /usr/local/lib/librats_tls.so /project/pyrats_tls/
@@ -55,13 +60,13 @@ jobs:
           CIBW_BEFORE_BUILD_MACOS: |
             echo "Updating Homebrew..."
             brew update --quiet
-            echo "Installing openssl@3 and libcbor..."
-            brew install openssl@3 libcbor
+            echo "Installing openssl@3, libcbor, and libfido2..."
+            brew install openssl@3 libcbor libfido2
             echo "Cloning rats-tls..."
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
             echo "Configuring rats-tls with CMake..."
-            cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_PREFIX_PATH="/opt/homebrew/opt/openssl@3;/opt/homebrew/opt/libcbor" -DTLS_TYPE=openssl -DWITH_SGX=OFF
+            cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_PREFIX_PATH="/opt/homebrew/opt/openssl@3;/opt/homebrew/opt/libcbor;/opt/homebrew/opt/libfido2" -DTLS_TYPE=openssl -DWITH_SGX=OFF -DOPENSSL_USE_STATIC_LIBS=ON
             echo "Building and installing rats-tls..."
             sudo cmake --build build --target install
             echo "Copying librats_tls.dylib..."
@@ -74,7 +79,7 @@ jobs:
             choco install git make openssl
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
-            cmake -G "Visual Studio 16 2019" -A x64 -B build -DCMAKE_INSTALL_PREFIX=C:/rats-tls -DTLS_TYPE=openssl -DWITH_SGX=OFF
+            cmake -G "Visual Studio 16 2019" -A x64 -B build -DCMAKE_INSTALL_PREFIX=C:/rats-tls -DTLS_TYPE=openssl -DWITH_SGX=OFF -DOPENSSL_USE_STATIC_LIBS=ON
             cmake --build build --config Release --target install
             mkdir -p /project/pyrats_tls
             cp C:/rats-tls/bin/rats_tls.dll /project/pyrats_tls/
@@ -94,4 +99,4 @@ jobs:
           pytest tests
         env:
           LD_LIBRARY_PATH: /usr/local/lib:$LD_LIBRARY_PATH  # Linux
-          DYLD_LIBRARY_PATH: /usr/local/lib:/opt/homebrew/opt/openssl@3/lib:$DYLD_LIBRARY_PATH  # macOS
+          DYLD_LIBRARY_PATH: /usr/local/lib:/opt/homebrew/opt/openssl@3/lib:/opt/homebrew/opt/libcbor/lib:/opt/homebrew/opt/libfido2/lib:$DYLD_LIBRARY_PATH  # macOS

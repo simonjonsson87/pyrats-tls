@@ -6,7 +6,7 @@ import threading
 import time
 from pyrats_tls import (
     start_server,
-    connect_ra_tls_client,
+    connect_client,
     send_message,
     receive_message,
     close_connection,
@@ -17,7 +17,7 @@ from pyrats_tls import (
 def test_server_without_mutual_attestation():
     if platform.system() != "Linux":
         pytest.skip("RA-TLS server is only supported on Linux")
-    token, connection = start_server("127.0.0.1", "4444", mutual_attestation=False)
+    token, connection, _ = start_server("127.0.0.1", 4444, mutual_attestation=False, attester_type="nullattester", verifier_type="nullverifier")
     assert isinstance(token, str) and len(token) > 0
     assert verify_attestation_token(token)
     close_connection(connection)
@@ -26,7 +26,7 @@ def test_server_with_mutual_attestation():
     if platform.system() != "Linux":
         pytest.skip("RA-TLS server is only supported on Linux")
     try:
-        token, connection = start_server("127.0.0.1", "4444", mutual_attestation=True)
+        token, connection, _ = start_server("127.0.0.1", 4444, mutual_attestation=True, attester_type="nullattester", verifier_type="nullverifier")
         assert isinstance(token, str) and len(token) > 0
         assert verify_attestation_token(token)
         close_connection(connection)
@@ -37,7 +37,7 @@ def test_server_with_custom_token():
     if platform.system() != "Linux":
         pytest.skip("RA-TLS server is only supported on Linux")
     try:
-        token, connection = start_server("127.0.0.1", "4444", mutual_attestation=False, custom_token="test_token")
+        token, connection, _ = start_server("127.0.0.1", 4444, mutual_attestation=False, custom_token="test_token", attester_type="nullattester", verifier_type="nullverifier")
         assert isinstance(token, str) and len(token) > 0
         assert verify_attestation_token(token)
         close_connection(connection)
@@ -48,7 +48,7 @@ def test_server_with_policy_file():
     if platform.system() != "Linux":
         pytest.skip("RA-TLS server is only supported on Linux")
     try:
-        token, connection = start_server("127.0.0.1", "4444", mutual_attestation=True, policy_file="/path/to/policy.json")
+        token, connection, _ = start_server("127.0.0.1", 4444, mutual_attestation=True, policy_file="/path/to/policy.json", attester_type="nullattester", verifier_type="nullverifier")
         assert isinstance(token, str) and len(token) > 0
         assert verify_attestation_token(token)
         close_connection(connection)
@@ -59,7 +59,7 @@ def test_server_raises_on_non_linux():
     if platform.system() == "Linux":
         pytest.skip("Test only applicable on non-Linux platforms")
     with pytest.raises(PlatformNotSupportedError):
-        start_server("127.0.0.1", "4444")
+        start_server("127.0.0.1", 4444)
 
 def test_server_client_message_passing():
     if platform.system() != "Linux":
@@ -67,7 +67,7 @@ def test_server_client_message_passing():
 
     def server_thread():
         try:
-            token, server_conn = start_server("127.0.0.1", "4445", mutual_attestation=False)
+            token, server_conn, _ = start_server("127.0.0.1", 4445, mutual_attestation=False, attester_type="nullattester", verifier_type="nullverifier")
             assert verify_attestation_token(token)
             message = receive_message(server_conn)
             assert message == "Hello, RATS-TLS!"
@@ -78,9 +78,11 @@ def test_server_client_message_passing():
     def client_thread():
         time.sleep(0.1)  # Ensure server starts first
         try:
-            token, client_conn = connect_ra_tls_client("127.0.0.1", "4445", mutual_attestation=False)
+            token, client_conn, _ = connect_client("127.0.0.1", 4445, mutual_attestation=False, attester_type="nullattester", verifier_type="nullverifier")
             assert verify_attestation_token(token)
             send_message(client_conn, "Hello, RATS-TLS!")
+            response = receive_message(client_conn)
+            assert response == "Server response: OK"
             close_connection(client_conn)
         except RuntimeError as e:
             print(f"Client error: {e}")

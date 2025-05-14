@@ -7,7 +7,7 @@ import platform
 import socket
 import threading
 import logging
-from .exceptions import RatsTlsError
+from .exceptions import RatsTlsError, PlatformNotSupportedError
 
 # Set up logging
 logging.basicConfig(level=logging.WARNING)
@@ -30,18 +30,22 @@ def _load_library():
         if os.path.exists(lib_path):
             return ctypes.CDLL(lib_path)
     except OSError as e:
-        print(f"Failed to load {lib_path}: {e}")
+        logger.error(f"Failed to load {lib_path}: {e}")
 
     # Fallback to system paths
     try:
         return ctypes.CDLL(lib_name)
     except OSError as e:
-        raise RatsTlsError(f"Cannot load {lib_name}: {e}")
+        raise RatsTlsError(f"Cannot load {lib_name}: {e}. Ensure OpenSSL and libfido2 are installed.")
 
 # Load RATS-TLS library
-lib = _load_library()
+try:
+    lib = _load_library()
+except RatsTlsError as e:
+    logger.error(f"Library loading failed: {e}")
+    raise
 
-# Bind to C free function on the correct library
+# Bind to C free function
 if sys.platform == "win32":
     libc = ctypes.cdll.msvcrt
 elif sys.platform.startswith("linux"):
@@ -196,7 +200,7 @@ def _handle_client(handle: ctypes.POINTER(RatsTlsHandle), client_sock: socket.so
 
         return received_message, response
     finally:
-        client_sock.close()  # Close socket here instead of os.close(fd)
+        client_sock.close()
 
 def start_server(
     ip: str = "127.0.0.1",
@@ -209,7 +213,9 @@ def start_server(
     provide_endorsements: bool = False,
     log_level: str = "debug"
 ) -> tuple[ctypes.POINTER(RatsTlsHandle), list, list]:
-    """Start a RATS-TLS server. Returns handle, claims, and value buffers."""
+    """Start a RATS-TLS server (Linux only). Returns handle, claims, and value buffers."""
+    if platform.system() != "Linux":
+        raise PlatformNotSupportedError("RATS-TLS server is only supported on Linux")
     conf, claims, value_buffers = _configure_rats_tls(
         attester_type, verifier_type, tls_type, crypto_type, mutual_attestation, provide_endorsements, log_level
     )
@@ -223,20 +229,22 @@ def start_server(
         raise RatsTlsError(f"Failed to set verification callback: error {result}")
 
     server_sock = _create_socket(ip, port)
-    print(f"RATS-TLS server listening on {ip}:{port}")
+    logger.info(f"RATS-TLS server listening on {ip}:{port}")
 
     def server_loop():
         try:
             while True:
                 client_sock, addr = server_sock.accept()
-                print(f"Accepted connection from {addr}")
+                logger.info(f"Accepted connection from {addr}")
                 try:
                     received, sent = _handle_client(handle, client_sock)
-                    print(f"Received: {received}, Sent: {sent.decode('utf-8')}")
+                    logger.info(f"Received: {received}, Sent: {sent.decode('utf-8')}")
                 except Exception as e:
                     logger.error(f"Error handling client {addr}: {e}")
+                finally:
+                    client_sock.close()
         except KeyboardInterrupt:
-            print("Shutting down server...")
+            logger.info("Shutting down server...")
         finally:
             server_sock.close()
             lib.rats_tls_cleanup(handle)
@@ -319,4 +327,3 @@ if __name__ == "__main__":
     response = receive_message(client_handle)
     print(f"Client received: {response}")
     close_connection(client_handle)
-    # Server runs in background; use Ctrl+C to stop
