@@ -20,7 +20,7 @@ classifiers = [
   "Operating System :: MacOS",
   "Operating System :: Microsoft :: Windows"
 ]
-requires-python = ">=3.7"
+requires-python = ">=3.12"
 
 [project.urls]
 Homepage = "https://github.com/simonjonsson87/pyrats_tls"
