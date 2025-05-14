@@ -80,12 +80,12 @@ jobs:
 
             echo "Configuring rats-tls with CMake..."
             cmake -B build \
-              -DCMAKE_INSTALL_PREFIX=/usr/local \
-              -DTLS_TYPE=openssl \
-              -DWITH_SGX=OFF \
-              -DOPENSSL_USE_STATIC_LIBS=ON
-              -DOPENSSL_ROOT_DIR=/opt/homebrew/opt/openssl@3 \
-              -DOPENSSL_INCLUDE_DIR=/opt/homebrew/opt/openssl@3/include
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DTLS_TYPE=openssl \
+            -DWITH_SGX=OFF \
+            -DOPENSSL_USE_STATIC_LIBS=ON \
+            -DOPENSSL_ROOT_DIR=/opt/homebrew/opt/openssl@3 \
+            -DOPENSSL_INCLUDE_DIR=/opt/homebrew/opt/openssl@3/include
 
             echo "Building and installing rats-tls..."
             sudo cmake --build build --target install
