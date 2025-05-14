@@ -28,7 +28,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          architecture: arm64  # macOS arm64, ignored on Linux/Windows
+          architecture: ${{ matrix.architecture }}
           cache: 'pip'
 
 
