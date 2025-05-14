@@ -25,7 +25,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install cibuildwheel
-        run: pip install cibuildwheel
+        run: pip install cibuildwheel==2.23.3
 
       - name: Build wheels
         run: |
@@ -47,20 +47,28 @@ jobs:
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
             cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DTLS_TYPE=openssl -DWITH_SGX=OFF -DWITH_SEV=ON
-            cmake --build build --target install
+            sudo cmake --build build --target install
             mkdir -p /project/pyrats_tls
             cp /usr/local/lib/librats_tls.so /project/pyrats_tls/
             cd ..
             pip install cmake ninja
           CIBW_BEFORE_BUILD_MACOS: |
+            echo "Updating Homebrew..."
+            brew update --quiet
+            echo "Installing openssl@3 and libcbor..."
             brew install openssl@3 libcbor
+            echo "Cloning rats-tls..."
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
+            echo "Configuring rats-tls with CMake..."
             cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_PREFIX_PATH="/opt/homebrew/opt/openssl@3;/opt/homebrew/opt/libcbor" -DTLS_TYPE=openssl -DWITH_SGX=OFF
-            cmake --build build --target install
+            echo "Building and installing rats-tls..."
+            sudo cmake --build build --target install
+            echo "Copying librats_tls.dylib..."
             mkdir -p /project/pyrats_tls
             cp /usr/local/lib/librats_tls.dylib /project/pyrats_tls/
             cd ..
+            echo "Installing cmake and ninja..."
             pip install cmake ninja
           CIBW_BEFORE_BUILD_WINDOWS: |
             choco install git make openssl
