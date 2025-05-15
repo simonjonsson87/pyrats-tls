@@ -55,7 +55,9 @@ jobs:
             PATH="C:/rats-tls/bin;C:/Program Files/OpenSSL-Win64/bin;$PATH"
           CIBW_BEFORE_BUILD_LINUX: |
             yum install -y epel-release
-            yum install -y git make autoconf libtool gcc gcc-c++ openssl-devel pkgconfig wget libudev-devel
+            yum install -y git make autoconf libtool gcc gcc-c++ openssl-devel pkgconfig wget libudev-devel zlib-devel libusb-devel
+            echo "Installing Intel SGX SDK dependencies"
+            yum install -y libsgx-urts libsgx-dcap-ql
             echo "Installing CMake 3.28.3"
             wget https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3.tar.gz
             tar -xzf cmake-3.28.3.tar.gz
@@ -73,15 +75,16 @@ jobs:
             sed -i 's/cmake_minimum_required(VERSION 3.0)/cmake_minimum_required(VERSION 3.5...3.28)/' CMakeLists.txt
             mkdir build && cd build
             cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
-            make -j$(nproc) && make install
+            make -j$(nproc) &&-make install
             cd ../..
             echo "Installing libfido2 from source"
             wget https://github.com/Yubico/libfido2/archive/1.16.0.tar.gz
             tar -xzf 1.16.0.tar.gz
             cd libfido2-1.16.0
             mkdir build && cd build
-            cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_PREFIX_PATH="/usr/local;/usr"
-            make -j$(nproc) && make install
+            cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_PREFIX_PATH="/usr/local;/usr" -CMAKE_VERBOSE_MAKEFILE=ON
+            make -j$(nproc) || { echo "libfido2 build failed, check logs"; exit 1; }
+            make install
             cd ../..
             ls -l /usr/include/openssl/opensslv.h || { echo "Error: OpenSSL headers not found"; exit 1; }
             export PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
@@ -90,25 +93,10 @@ jobs:
             export CXXFLAGS="-I/usr/include/openssl"
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
-            echo "Patching tls_wrapper_verify_certificate_extension.c to skip SGX attestation"
-            sed -i '/#include "sgx_quote_3.h"/i\
-            #ifdef WITH_SGX\
-            ' src/tls_wrappers/api/tls_wrapper_verify_certificate_extension.c
-            sed -i '/#include "sgx_quote_3.h"/a\
-            #endif\
-            ' src/tls_wrappers/api/tls_wrapper_verify_certificate_extension.c
-            sed -i '/if (evidence.type == RATS_TLS_EVIDENCE_TYPE_SGX_ECDSA)/i\
-            #ifdef WITH_SGX\
-            ' src/tls_wrappers/api/tls_wrapper_verify_certificate_extension.c
-            sed -i '/ev.sgx.attributes = (uint8_t \*)&(quote3->report_body.attributes);/a\
-            #endif\
-            ' src/tls_wrappers/api/tls_wrapper_verify_certificate_extension.c
-            echo "Verifying patch"
-            grep -A20 -B20 'RATS_TLS_EVIDENCE_TYPE_SGX_ECDSA' src/tls_wrappers/api/tls_wrapper_verify_certificate_extension.c || { echo "Patch verification failed"; exit 1; }
             cmake -B build \
               -DCMAKE_INSTALL_PREFIX=/usr/local \
               -DTLS_TYPE=openssl \
-              -DWITH_SGX=OFF \
+              -DWITH_SGX=ON \
               -DWITH_SEV=ON \
               -DOPENSSL_USE_STATIC_LIBS=ON \
               -DOPENSSL_DIR=/usr \
@@ -116,7 +104,6 @@ jobs:
               -DOPENSSL_LIBRARY_DIR=/usr/lib \
               -DCMAKE_PREFIX_PATH="/usr;/usr/local;/usr/local/lib" \
               -DCMAKE_INCLUDE_PATH="/usr/include;/usr/local/include" \
-              -DSGX_SDK= \
               -DRATS_TLS_ATTESTER=null \
               -CMAKE_VERBOSE_MAKEFILE=ON
             echo "=== Checking CMake OpenSSL detection ==="
