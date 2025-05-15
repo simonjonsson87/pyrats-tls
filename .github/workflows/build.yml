@@ -90,15 +90,21 @@ jobs:
             export CXXFLAGS="-I/usr/include/openssl"
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
-            echo "Patching tls_wrapper_verify_certificate_extension.c to skip SGX"
+            echo "Patching tls_wrapper_verify_certificate_extension.c to skip SGX attestation"
             sed -i '/#include "sgx_quote_3.h"/i\
             #ifdef WITH_SGX\
             ' src/tls_wrappers/api/tls_wrapper_verify_certificate_extension.c
             sed -i '/#include "sgx_quote_3.h"/a\
             #endif\
             ' src/tls_wrappers/api/tls_wrapper_verify_certificate_extension.c
+            sed -i '/if (evidence.type == RATS_TLS_EVIDENCE_TYPE_SGX_ECDSA)/i\
+            #ifdef WITH_SGX\
+            ' src/tls_wrappers/api/tls_wrapper_verify_certificate_extension.c
+            sed -i '/ev.sgx.attributes = (uint8_t \*)&(quote3->report_body.attributes);/a\
+            #endif\
+            ' src/tls_wrappers/api/tls_wrapper_verify_certificate_extension.c
             echo "Verifying patch"
-            grep -A1 -B1 sgx_quote_3.h src/tls_wrappers/api/tls_wrapper_verify_certificate_extension.c || { echo "Patch verification failed"; exit 1; }
+            grep -A20 -B20 'RATS_TLS_EVIDENCE_TYPE_SGX_ECDSA' src/tls_wrappers/api/tls_wrapper_verify_certificate_extension.c || { echo "Patch verification failed"; exit 1; }
             cmake -B build \
               -DCMAKE_INSTALL_PREFIX=/usr/local \
               -DTLS_TYPE=openssl \
@@ -110,7 +116,9 @@ jobs:
               -DOPENSSL_LIBRARY_DIR=/usr/lib \
               -DCMAKE_PREFIX_PATH="/usr;/usr/local;/usr/local/lib" \
               -DCMAKE_INCLUDE_PATH="/usr/include;/usr/local/include" \
-              -DCMAKE_VERBOSE_MAKEFILE=ON
+              -DSGX_SDK= \
+              -DRATS_TLS_ATTESTER=null \
+              -CMAKE_VERBOSE_MAKEFILE=ON
             echo "=== Checking CMake OpenSSL detection ==="
             cmake -LA | grep OPENSSL || echo "CMake did not detect OpenSSL"
             cmake --build build --target install -j$(nproc)
