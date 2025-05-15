@@ -37,7 +37,7 @@ jobs:
           cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: "cp312-*"
-          CIBW_BUILD_VERBOSITY: 3
+          CIBW_BUILD_VERBOSITY: 2
           CIBW_CONFIG_SETTINGS: |
             bdist_wheel.plat-name=macosx_11_0_universal2
             bdist_wheel.plat-name=manylinux_2_17_x86_64
