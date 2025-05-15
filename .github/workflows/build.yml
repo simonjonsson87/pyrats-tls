@@ -118,8 +118,7 @@ jobs:
               -DOPENSSL_LIBRARY_DIR="$OPENSSL_PREFIX/lib" \
               -DCMAKE_PREFIX_PATH="$OPENSSL_PREFIX;/opt/homebrew/opt/libcbor;/opt/homebrew/opt/libfido2" \
               -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-              -DCMAKE_VERBOSE_MAKEFILE=ON \
-              --trace-expand
+              -DCMAKE_VERBOSE_MAKEFILE=ON 
             echo "=== Checking CMake OpenSSL detection ==="
             cmake -LA | grep OPENSSL || echo "CMake did not detect OpenSSL"
             sudo cmake --build build --target install
