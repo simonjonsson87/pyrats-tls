@@ -37,11 +37,11 @@ jobs:
           cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: "cp312-*"
-          CIBW_BUILD_VERBOSITY: 2
+          CIBW_BUILD_VERBOSITY: 4
           CIBW_CONFIG_SETTINGS: |
-            bdist_wheel.plat-name=macosx_11_0_universal2  # macOS
-            bdist_wheel.plat-name=manylinux_2_17_x86_64  # Linux
-            bdist_wheel.plat-name=win_amd64  # Windows
+            bdist_wheel.plat-name=macosx_11_0_universal2
+            bdist_wheel.plat-name=manylinux_2_17_x86_64
+            bdist_wheel.plat-name=win_amd64
           CIBW_ENVIRONMENT_LINUX: >
             LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
             PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
@@ -63,29 +63,54 @@ jobs:
               -DWITH_SGX=OFF \
               -DWITH_SEV=ON \
               -DOPENSSL_USE_STATIC_LIBS=ON \
-              -DCMAKE_PREFIX_PATH="/usr;/usr/local"
+              -DCMAKE_PREFIX_PATH="/usr;/usr/local" \
+              --trace-expand
             sudo cmake --build build --target install
-            mkdir -p /project/pyrats_tls
-            if [ ! -f /usr/local/lib/librats_tls.so ]; then echo "Error: librats_tls.so not found"; exit 1; fi
-            cp /usr/local/lib/librats_tls.so /project/pyrats_tls/
+            mkdir -p ../pyrats_tls
+            ls -l /usr/local/lib/librats_tls.so || { echo "Error: librats_tls.so not found"; exit 1; }
+            cp /usr/local/lib/librats_tls.so ../pyrats_tls/
             cd ..
             pip install cmake ninja
           CIBW_BEFORE_BUILD_MACOS: |
+            echo "=== Debugging OpenSSL Header ==="
+            ls -l /opt/homebrew/opt/openssl@3/include/openssl/opensslv.h || echo "OpenSSL header not found"
+            brew info openssl@3
+            echo "=== Debugging pkg-config ==="
+            echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
+            find /opt/homebrew -name 'openssl.pc' || echo "openssl.pc not found"
+            pkg-config --modversion openssl || echo "pkg-config cannot find OpenSSL"
+            echo "=== Debugging /project permissions ==="
+            ls -ld /project || echo "/project does not exist or is inaccessible"
+            mkdir -p /project/pyrats_tls 2>&1 || echo "Cannot create /project/pyrats_tls"
+            echo "=== Debugging project root permissions ==="
+            ls -ld .. || echo "Cannot access project root"
+            mkdir -p ../pyrats_tls || { echo "Cannot create ../pyrats_tls"; exit 1; }
+            ls -ld ../pyrats_tls
+            echo "=== Installing dependencies ==="
             brew update --quiet
-            brew install openssl@3 libcbor libfido2 pkg-config
+            brew install openssl@3 libcbor libfido2 pkg-config || brew reinstall openssl@3 libcbor libfido2 pkg-config
+            export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig:/opt/homebrew/opt/libcbor/lib/pkgconfig:/opt/homebrew/opt/libfido2/lib/pkgconfig:$PKG_CONFIG_PATH"
+            echo "=== Cloning rats-tls ==="
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
+            echo "=== Debugging CMAKE_PREFIX_PATH ==="
+            echo "CMAKE_PREFIX_PATH=/opt/homebrew/opt/openssl@3;/opt/homebrew/opt/libcbor;/opt/homebrew/opt/libfido2"
             cmake -B build \
               -DCMAKE_INSTALL_PREFIX=/usr/local \
               -DTLS_TYPE=openssl \
               -DWITH_SGX=OFF \
               -DOPENSSL_USE_STATIC_LIBS=ON \
+              -DOPENSSL_DIR="/opt/homebrew/opt/openssl@3" \
+              -DOPENSSL_INCLUDE_DIR="/opt/homebrew/opt/openssl@3/include" \
+              -DOPENSSL_LIBRARY_DIR="/opt/homebrew/opt/openssl@3/lib" \
               -DCMAKE_PREFIX_PATH="/opt/homebrew/opt/openssl@3;/opt/homebrew/opt/libcbor;/opt/homebrew/opt/libfido2" \
-              -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+              -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+              --trace-expand
+            echo "=== Checking CMake OpenSSL detection ==="
+            cmake -LA | grep OPENSSL || echo "CMake did not detect OpenSSL"
             sudo cmake --build build --target install
-            mkdir -p /project/pyrats_tls
-            if [ ! -f /usr/local/lib/librats_tls.dylib ]; then echo "Error: librats_tls.dylib not found"; exit 1; fi
-            cp /usr/local/lib/librats_tls.dylib /project/pyrats_tls/
+            ls -l /usr/local/lib/librats_tls.dylib || { echo "Error: librats_tls.dylib not found"; exit 1; }
+            cp /usr/local/lib/librats_tls.dylib ../pyrats_tls/
             cd ..
             pip install cmake ninja
           CIBW_BEFORE_BUILD_WINDOWS: |
@@ -97,11 +122,14 @@ jobs:
               -DTLS_TYPE=openssl \
               -DWITH_SGX=OFF \
               -DOPENSSL_USE_STATIC_LIBS=ON \
+              -DOPENSSL_DIR="C:/Program Files/OpenSSL-Win64" \
+              -DOPENSSL_INCLUDE_DIR="C:/Program Files/OpenSSL-Win64/include" \
+              -DOPENSSL_LIBRARY_DIR="C:/Program Files/OpenSSL-Win64/lib" \
               -DCMAKE_PREFIX_PATH="C:/Program Files/OpenSSL-Win64"
             cmake --build build --config Release --target install
-            mkdir -p /project/pyrats_tls
-            if [ ! -f C:/rats-tls/bin/rats_tls.dll ]; then echo "Error: rats_tls.dll not found"; exit 1; fi
-            cp C:/rats-tls/bin/rats_tls.dll /project/pyrats_tls/
+            mkdir -p ../pyrats_tls
+            ls C:/rats-tls/bin/rats_tls.dll || { echo "Error: rats_tls.dll not found"; exit 1; }
+            cp C:/rats-tls/bin/rats_tls.dll ../pyrats_tls/
             cd ..
             pip install cmake ninja
           CIBW_ARCHS_MACOS: "universal2"
