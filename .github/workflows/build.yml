@@ -41,7 +41,7 @@ jobs:
           CIBW_BUILD: "cp312-*"
           CIBW_BUILD_VERBOSITY: 1
           CIBW_CONFIG_SETTINGS: |
-            bdist_wheel.plat-name=macosx_11_0_arm64
+            bdist_wheel.plat-name=macosx_11_0_universal2
             bdist_wheel.plat-name=manylinux_2_17_x86_64
             bdist_wheel.plat-name=win_amd64
           CIBW_ENVIRONMENT_LINUX: >
@@ -109,6 +109,7 @@ jobs:
             cp C:/rats-tls/bin/rats_tls.dll /project/pyrats_tls/
             cd ..
             pip install cmake ninja
+          CIBW_ARCHS_MACOS: "x86_64 universal2"  
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
