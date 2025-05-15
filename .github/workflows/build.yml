@@ -55,7 +55,7 @@ jobs:
             PATH="C:/rats-tls/bin;C:/Program Files/OpenSSL-Win64/bin;$PATH"
           CIBW_BEFORE_BUILD_LINUX: |
             yum install -y epel-release
-            yum install -y git make autoconf libtool gcc gcc-c++ openssl-devel pkgconfig wget libudev-devel zlib-devel libusb-devel
+            yum install -y git make autoconf libtool gcc gcc-c++ openssl-devel pkgconfig wget libudev-devel zlib-devel libusb-devel glibc-devel libstdc++-devel
             echo "Installing Intel SGX SDK dependencies"
             yum install -y libsgx-urts libsgx-dcap-ql
             echo "Installing CMake 3.28.3"
@@ -73,9 +73,10 @@ jobs:
             tar -xzf v0.12.0.tar.gz
             cd libcbor-0.12.0
             sed -i 's/cmake_minimum_required(VERSION 3.0)/cmake_minimum_required(VERSION 3.5...3.28)/' CMakeLists.txt
+            cat CMakeLists.txt | grep cmake_minimum_required || { echo "Failed to modify CMakeLists.txt"; exit 1; }
             mkdir build && cd build
-            cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -CMAKE_VERBOSE_MAKEFILE=ON
-            make -j$(nproc) && make install || { echo "libcbor installation failed"; exit 1; }
+            cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local > cmake_output.log 2>&1 || { cat cmake_output.log; echo "libcbor CMake failed"; exit 1; }
+            make -j$(nproc) && make install || { echo "libcbor build or installation failed"; exit 1; }
             ls -l /usr/local/lib/libcbor.so || { echo "libcbor.so not found"; exit 1; }
             ls -l /usr/local/lib/pkgconfig/libcbor.pc || { echo "libcbor.pc not found"; exit 1; }
             cd ../..
@@ -84,7 +85,7 @@ jobs:
             tar -xzf 1.16.0.tar.gz
             cd libfido2-1.16.0
             mkdir build && cd build
-            cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_PREFIX_PATH="/usr/local;/usr" -CMAKE_LIBRARY_PATH="/usr/local/lib;/usr/lib" -CMAKE_INCLUDE_PATH="/usr/local/include;/usr/include" -CMAKE_VERBOSE_MAKEFILE=ON
+            cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_PREFIX_PATH="/usr/local;/usr" -CMAKE_LIBRARY_PATH="/usr/local/lib;/usr/lib" -CMAKE_INCLUDE_PATH="/usr/local/include;/usr/include"
             make -j$(nproc) || { echo "libfido2 build failed, check logs"; exit 1; }
             make install
             cd ../..
