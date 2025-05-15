@@ -1,5 +1,3 @@
-# pyproject.toml
-
 [build-system]
 requires = ["setuptools>=61.0", "wheel", "cffi"]
 build-backend = "setuptools.build_meta"
@@ -9,13 +7,12 @@ name = "pyrats_tls"
 version = "0.1.0"
 description = "Python bindings for RATS-TLS (Remote Attestation over TLS)"
 authors = [
-  { name="Simon Jonsson", email="snowier_unfazed.9h@icloud.com" }
+  { name = "Simon Jonsson", email = "snowier_unfazed.9h@icloud.com" }
 ]
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MIT"
 classifiers = [
   "Programming Language :: Python :: 3.12",
-  "License :: OSI Approved :: MIT License",
   "Operating System :: POSIX :: Linux",
   "Operating System :: MacOS :: MacOS X",
   "Operating System :: Microsoft :: Windows",
@@ -26,10 +23,12 @@ requires-python = ">=3.12"
 
 [project.urls]
 Homepage = "https://github.com/simonjonsson87/pyrats_tls"
+Repository = "https://github.com/simonjonsson87/pyrats_tls"
+Issues = "https://github.com/simonjonsson87/pyrats_tls/issues"
 
 [tool.setuptools]
-package-dir = {"pyrats_tls"= "pyrats_tls"}
+package-dir = { "pyrats_tls" = "pyrats_tls" }
 packages = ["pyrats_tls"]
 
 [tool.setuptools.package-data]
-"pyrats_tls" = ["librats_tls.so", "librats_tls.dylib", "rats_tls.dll"]
+pyrats_tls = ["librats_tls.so", "librats_tls.dylib", "rats_tls.dll"]

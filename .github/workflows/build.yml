@@ -1,5 +1,3 @@
-# build.yml
-
 name: Build Wheels
 
 on:
@@ -39,77 +37,76 @@ jobs:
           cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: "cp312-*"
-          CIBW_BUILD_VERBOSITY: 1
+          CIBW_BUILD_VERBOSITY: 2
           CIBW_CONFIG_SETTINGS: |
-            bdist_wheel.plat-name=macosx_11_0_universal2
-            bdist_wheel.plat-name=manylinux_2_17_x86_64
-            bdist_wheel.plat-name=win_amd64
+            bdist_wheel.plat-name=macosx_11_0_universal2  # macOS
+            bdist_wheel.plat-name=manylinux_2_17_x86_64  # Linux
+            bdist_wheel.plat-name=win_amd64  # Windows
           CIBW_ENVIRONMENT_LINUX: >
             LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
+            PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
           CIBW_ENVIRONMENT_MACOS: >
             DYLD_LIBRARY_PATH="/usr/local/lib:/opt/homebrew/opt/openssl@3/lib:/opt/homebrew/opt/libcbor/lib:/opt/homebrew/opt/libfido2/lib:$DYLD_LIBRARY_PATH"
+            PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig:/opt/homebrew/opt/libcbor/lib/pkgconfig:/opt/homebrew/opt/libfido2/lib/pkgconfig:$PKG_CONFIG_PATH"
             OPENSSL_DIR="/opt/homebrew/opt/openssl@3"
             LIBCBOR_DIR="/opt/homebrew/opt/libcbor"
+            LIBFIDO2_DIR="/opt/homebrew/opt/libfido2"
           CIBW_ENVIRONMENT_WINDOWS: >
-            PATH="C:/rats-tls/bin;$PATH"
+            PATH="C:/rats-tls/bin;C:/Program Files/OpenSSL-Win64/bin;$PATH"
           CIBW_BEFORE_BUILD_LINUX: |
-            apt-get update && apt-get install -y git make autoconf libtool gcc g++ libssl-dev libcbor-dev libfido2-dev
+            apt-get update && apt-get install -y git make autoconf libtool gcc g++ libssl-dev libcbor-dev libfido2-dev pkg-config
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
-            cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DTLS_TYPE=openssl -DWITH_SGX=OFF -DWITH_SEV=ON -DOPENSSL_USE_STATIC_LIBS=ON
+            cmake -B build \
+              -DCMAKE_INSTALL_PREFIX=/usr/local \
+              -DTLS_TYPE=openssl \
+              -DWITH_SGX=OFF \
+              -DWITH_SEV=ON \
+              -DOPENSSL_USE_STATIC_LIBS=ON \
+              -DCMAKE_PREFIX_PATH="/usr;/usr/local"
             sudo cmake --build build --target install
             mkdir -p /project/pyrats_tls
+            if [ ! -f /usr/local/lib/librats_tls.so ]; then echo "Error: librats_tls.so not found"; exit 1; fi
             cp /usr/local/lib/librats_tls.so /project/pyrats_tls/
             cd ..
             pip install cmake ninja
           CIBW_BEFORE_BUILD_MACOS: |
-            echo "Updating Homebrew..."
             brew update --quiet
-
-            echo "Installing openssl@3, libcbor, and libfido2..."
-            brew install openssl@3 libcbor libfido2
-
-            # Make OpenSSL visible to CMake
-            export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
-            export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
-            export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
-
-            echo "Cloning rats-tls..."
+            brew install openssl@3 libcbor libfido2 pkg-config
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
-
-            echo "Configuring rats-tls with CMake..."
             cmake -B build \
-            -DCMAKE_INSTALL_PREFIX=/usr/local \
-            -DTLS_TYPE=openssl \
-            -DWITH_SGX=OFF \
-            -DOPENSSL_USE_STATIC_LIBS=ON \
-            -DOPENSSL_ROOT_DIR=/opt/homebrew/opt/openssl@3 \
-            -DOPENSSL_INCLUDE_DIR=/opt/homebrew/opt/openssl@3/include
-
-            echo "Building and installing rats-tls..."
+              -DCMAKE_INSTALL_PREFIX=/usr/local \
+              -DTLS_TYPE=openssl \
+              -DWITH_SGX=OFF \
+              -DOPENSSL_USE_STATIC_LIBS=ON \
+              -DCMAKE_PREFIX_PATH="/opt/homebrew/opt/openssl@3;/opt/homebrew/opt/libcbor;/opt/homebrew/opt/libfido2" \
+              -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
             sudo cmake --build build --target install
-
-            # Back to the root of your Python project
+            mkdir -p /project/pyrats_tls
+            if [ ! -f /usr/local/lib/librats_tls.dylib ]; then echo "Error: librats_tls.dylib not found"; exit 1; fi
+            cp /usr/local/lib/librats_tls.dylib /project/pyrats_tls/
             cd ..
-
-            echo "Copying librats_tls.dylib into the Python package..."
-            mkdir -p pyrats_tls/
-            cp /usr/local/lib/librats_tls.dylib pyrats_tls/
-
-            echo "Installing CMake and Ninja for any Python-side build steps..."
             pip install cmake ninja
           CIBW_BEFORE_BUILD_WINDOWS: |
-            choco install git make openssl
+            choco install git make openssl pkgconfiglite
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
-            cmake -G "Visual Studio 16 2019" -A x64 -B build -DCMAKE_INSTALL_PREFIX=C:/rats-tls -DTLS_TYPE=openssl -DWITH_SGX=OFF -DOPENSSL_USE_STATIC_LIBS=ON
+            cmake -G "Visual Studio 16 2019" -A x64 -B build \
+              -DCMAKE_INSTALL_PREFIX=C:/rats-tls \
+              -DTLS_TYPE=openssl \
+              -DWITH_SGX=OFF \
+              -DOPENSSL_USE_STATIC_LIBS=ON \
+              -DCMAKE_PREFIX_PATH="C:/Program Files/OpenSSL-Win64"
             cmake --build build --config Release --target install
             mkdir -p /project/pyrats_tls
+            if [ ! -f C:/rats-tls/bin/rats_tls.dll ]; then echo "Error: rats_tls.dll not found"; exit 1; fi
             cp C:/rats-tls/bin/rats_tls.dll /project/pyrats_tls/
             cd ..
             pip install cmake ninja
-          CIBW_ARCHS_MACOS: "x86_64 universal2"  
+          CIBW_ARCHS_MACOS: "universal2"
+          CIBW_REPAIR_WHEEL_COMMAND_MACOS: |
+            delocate-wheel --require-archs universal2 -w {dest_dir} -v {wheel}
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -121,7 +118,7 @@ jobs:
         run: |
           pip install pytest
           pip install pyrats_tls --no-index --find-links=wheelhouse
-          pytest tests
+          pytest tests/test_client.py -v
         env:
           LD_LIBRARY_PATH: /usr/local/lib:$LD_LIBRARY_PATH
           DYLD_LIBRARY_PATH: /usr/local/lib:/opt/homebrew/opt/openssl@3/lib:/opt/homebrew/opt/libcbor/lib:/opt/homebrew/opt/libfido2/lib:$DYLD_LIBRARY_PATH

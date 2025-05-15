@@ -23,21 +23,19 @@ def _load_library():
     if not lib_name:
         raise RatsTlsError(f"Unsupported platform: {sys.platform}")
 
-    # Try package directory first
     package_dir = os.path.dirname(os.path.abspath(__file__))
     lib_path = os.path.join(package_dir, lib_name)
     try:
         if os.path.exists(lib_path):
             return ctypes.CDLL(lib_path)
     except OSError as e:
-        logger.error(f"Failed to load {lib_path}: {e}")
+        logger.error(f"Failed to load {lib_path}: {e}. Ensure libfido2 is installed (e.g., 'brew install libfido2' on macOS).")
 
-    # Fallback to system paths
     try:
         return ctypes.CDLL(lib_name)
     except OSError as e:
         raise RatsTlsError(f"Cannot load {lib_name}: {e}. Ensure OpenSSL and libfido2 are installed.")
-
+    
 # Load RATS-TLS library
 try:
     lib = _load_library()
