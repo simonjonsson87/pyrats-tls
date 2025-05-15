@@ -54,7 +54,35 @@ jobs:
           CIBW_ENVIRONMENT_WINDOWS: >
             PATH="C:/rats-tls/bin;C:/Program Files/OpenSSL-Win64/bin;$PATH"
           CIBW_BEFORE_BUILD_LINUX: |
-            yum install -y git make autoconf libtool gcc gcc-c++ openssl-devel libcbor-devel libfido2-devel pkgconf
+            # Install dependencies, handling missing libcbor-devel and libfido2-devel
+            yum install -y epel-release
+            yum install -y git make autoconf libtool gcc gcc-c++ openssl-devel pkgconf
+            # Install libcbor from source if libcbor-devel is unavailable
+            if ! yum install -y libcbor-devel; then
+              echo "Installing libcbor from source"
+              yum install -y wget
+              wget https://github.com/PJK/libcbor/archive/v0.12.0.tar.gz
+              tar -xzf v0.12.0.tar.gz
+              cd libcbor-0.12.0
+              mkdir build && cd build
+              cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+              make && make install
+              cd ../..
+            fi
+            # Install libfido2 from source if libfido2-devel is unavailable
+            if ! yum install -y libfido2-devel; then
+              echo "Installing libfido2 from source"
+              yum install -y libudev-devel
+              wget https://github.com/Yubico/libfido2/archive/1.16.0.tar.gz
+              tar -xzf 1.16.0.tar.gz
+              cd libfido2-1.16.0
+              mkdir build && cd build
+              cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+              make && make install
+              cd ../..
+            fi
+            export PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
+            export LD_LIBRARY_PATH="/usr/local/lib:/usr/lib:$LD_LIBRARY_PATH"
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
             cmake -B build \
@@ -63,7 +91,13 @@ jobs:
               -DWITH_SGX=OFF \
               -DWITH_SEV=ON \
               -DOPENSSL_USE_STATIC_LIBS=ON \
-              -DCMAKE_PREFIX_PATH="/usr;/usr/local"
+              -DOPENSSL_DIR=/usr \
+              -DOPENSSL_INCLUDE_DIR=/usr/include/openssl \
+              -DOPENSSL_LIBRARY_DIR=/usr/lib \
+              -DCMAKE_PREFIX_PATH="/usr;/usr/local;/usr/local/lib" \
+              -DCMAKE_VERBOSE_MAKEFILE=ON
+            echo "=== Checking CMake OpenSSL detection ==="
+            cmake -LA | grep OPENSSL || echo "CMake did not detect OpenSSL"
             cmake --build build --target install
             mkdir -p ../pyrats_tls
             ls -l /usr/local/lib/librats_tls.so || { echo "Error: librats_tls.so not found"; exit 1; }
