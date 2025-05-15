@@ -54,35 +54,34 @@ jobs:
           CIBW_ENVIRONMENT_WINDOWS: >
             PATH="C:/rats-tls/bin;C:/Program Files/OpenSSL-Win64/bin;$PATH"
           CIBW_BEFORE_BUILD_LINUX: |
-            # Install dependencies, handling missing libcbor-devel and libfido2-devel
+            # Install dependencies
             yum install -y epel-release
-            yum install -y git make autoconf libtool gcc gcc-c++ openssl-devel pkgconf
-            # Install libcbor from source if libcbor-devel is unavailable
-            if ! yum install -y libcbor-devel; then
-              echo "Installing libcbor from source"
-              yum install -y wget
-              wget https://github.com/PJK/libcbor/archive/v0.12.0.tar.gz
-              tar -xzf v0.12.0.tar.gz
-              cd libcbor-0.12.0
-              mkdir build && cd build
-              cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
-              make && make install
-              cd ../..
-            fi
-            # Install libfido2 from source if libfido2-devel is unavailable
-            if ! yum install -y libfido2-devel; then
-              echo "Installing libfido2 from source"
-              yum install -y libudev-devel
-              wget https://github.com/Yubico/libfido2/archive/1.16.0.tar.gz
-              tar -xzf 1.16.0.tar.gz
-              cd libfido2-1.16.0
-              mkdir build && cd build
-              cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
-              make && make install
-              cd ../..
-            fi
+            yum install -y git make autoconf libtool gcc gcc-c++ openssl-devel pkgconfig cmake wget
+            # Install libcbor from source
+            echo "Installing libcbor from source"
+            wget https://github.com/PJK/libcbor/archive/v0.12.0.tar.gz
+            tar -xzf v0.12.0.tar.gz
+            cd libcbor-0.12.0
+            # Patch CMakeLists.txt to fix version compatibility
+            sed -i 's/cmake_minimum_required(VERSION 3.0)/cmake_minimum_required(VERSION 3.5...3.28)/' CMakeLists.txt
+            mkdir build && cd build
+            cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+            make && make install
+            cd ../..
+            # Install libfido2 from source
+            echo "Installing libfido2 from source"
+            yum install -y libudev-devel
+            wget https://github.com/Yubico/libfido2/archive/1.16.0.tar.gz
+            tar -xzf 1.16.0.tar.gz
+            cd libfido2-1.16.0
+            mkdir build && cd build
+            cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_PREFIX_PATH="/usr/local;/usr"
+            make && make install
+            cd ../..
             export PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
             export LD_LIBRARY_PATH="/usr/local/lib:/usr/lib:$LD_LIBRARY_PATH"
+            export CFLAGS="-I/usr/include/openssl"
+            export CXXFLAGS="-I/usr/include/openssl"
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
             cmake -B build \
