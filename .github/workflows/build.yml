@@ -75,39 +75,26 @@ jobs:
             echo "=== Fetching OpenSSL path ==="
             OPENSSL_PREFIX=$(brew --prefix openssl@3) || { echo "Failed to get OpenSSL prefix"; exit 1; }
             echo "OPENSSL_PREFIX=$OPENSSL_PREFIX"
-            echo "=== Debugging OpenSSL Header ==="
+            echo "=== Verifying OpenSSL installation ==="
             ls -l "$OPENSSL_PREFIX/include/openssl/opensslv.h" || { echo "OpenSSL header not found at $OPENSSL_PREFIX"; exit 1; }
-            brew info openssl@3 || echo "Failed to get OpenSSL info"
-            echo "=== Debugging pkg-config ==="
+            echo "=== Setting pkg-config ==="
             export PKG_CONFIG_PATH="$OPENSSL_PREFIX/lib/pkgconfig:/opt/homebrew/opt/libcbor/lib/pkgconfig:/opt/homebrew/opt/libfido2/lib/pkgconfig:$PKG_CONFIG_PATH"
             echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
-            find "$OPENSSL_PREFIX" -name 'openssl.pc' || echo "openssl.pc not found"
             pkg-config --modversion openssl || echo "pkg-config cannot find OpenSSL"
-            pkg-config --cflags --libs openssl || echo "pkg-config cannot provide OpenSSL flags"
             echo "=== Debugging permissions ==="
-            ls -ld .. || echo "Cannot access project root"
             mkdir -p ../pyrats_tls || { echo "Cannot create ../pyrats_tls"; exit 1; }
             ls -ld ../pyrats_tls || echo "Cannot list ../pyrats_tls"
             echo "=== Installing dependencies ==="
             brew update --quiet
             brew install openssl@3 libcbor libfido2 pkg-config || brew reinstall openssl@3 libcbor libfido2 pkg-config
-            echo "=== Verifying OpenSSL installation ==="
-            ls -l "$OPENSSL_PREFIX/include/openssl/opensslv.h" || { echo "OpenSSL header still not found after install"; exit 1; }
             echo "=== Cloning rats-tls ==="
             git clone https://github.com/inclavare-containers/rats-tls.git
             cd rats-tls
-            echo "=== Patching CMakeLists.txt for OpenSSL ==="
-            sed -i '' '/find_package(OpenSSL REQUIRED)/a\
-            if(NOT OPENSSL_FOUND)\n\
-              find_package(PkgConfig REQUIRED)\n\
-              pkg_check_modules(OPENSSL REQUIRED openssl)\n\
-              set(OPENSSL_INCLUDE_DIR ${OPENSSL_INCLUDE_DIRS})\n\
-              set(OPENSSL_LIBRARIES ${OPENSSL_LIBRARIES})\n\
-            endif()' CMakeLists.txt
-            echo "=== Debugging CMake include paths ==="
-            grep -r "include_directories" . || echo "No include_directories found"
-            echo "=== Debugging CMAKE_PREFIX_PATH ==="
-            echo "CMAKE_PREFIX_PATH=$OPENSSL_PREFIX;/opt/homebrew/opt/libcbor;/opt/homebrew/opt/libfido2"
+            echo "=== Setting compiler flags for OpenSSL includes ==="
+            export CFLAGS="-I$OPENSSL_PREFIX/include"
+            export CXXFLAGS="-I$OPENSSL_PREFIX/include"
+            echo "CFLAGS=$CFLAGS"
+            echo "CXXFLAGS=$CXXFLAGS"
             cmake -B build \
               -DCMAKE_INSTALL_PREFIX=/usr/local \
               -DTLS_TYPE=openssl \
@@ -118,9 +105,11 @@ jobs:
               -DOPENSSL_LIBRARY_DIR="$OPENSSL_PREFIX/lib" \
               -DCMAKE_PREFIX_PATH="$OPENSSL_PREFIX;/opt/homebrew/opt/libcbor;/opt/homebrew/opt/libfido2" \
               -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-              -DCMAKE_VERBOSE_MAKEFILE=ON 
+              -DCMAKE_VERBOSE_MAKEFILE=ON
             echo "=== Checking CMake OpenSSL detection ==="
             cmake -LA | grep OPENSSL || echo "CMake did not detect OpenSSL"
+            echo "=== Checking CMake include paths ==="
+            cmake -LA | grep INCLUDE || echo "No include paths found"
             sudo cmake --build build --target install
             ls -l /usr/local/lib/librats_tls.dylib || { echo "Error: librats_tls.dylib not found"; exit 1; }
             cp /usr/local/lib/librats_tls.dylib ../pyrats_tls/
