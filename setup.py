@@ -2,22 +2,11 @@
 
 
 from setuptools import setup
-import sys
-
 setup(
     name="pyrats_tls",
     version="0.1.0",
     packages=["pyrats_tls"],
-    # Ensure platform-specific wheel
-    options={
-        "bdist_wheel": {
-            "plat_name": "macosx_11_0_universal2" if sys.platform == "darwin" else
-                         "manylinux_2_17_x86_64" if sys.platform == "linux" else
-                         "win_amd64"
-        }
-    }
 )
-
 
 
 #from setuptools import setup
